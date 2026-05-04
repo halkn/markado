@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+
+      - name: Check tag version
+        run: |
+          PACKAGE_VERSION="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "Version mismatch: package.json=$PACKAGE_VERSION, tag=$GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          bun build src/cli.ts --compile --target=bun-linux-x64 --outfile dist/markado-linux-x64
+          bun build src/cli.ts --compile --target=bun-linux-arm64 --outfile dist/markado-linux-arm64
+          bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist/markado-darwin-x64
+          bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/markado-darwin-arm64
+          bun build src/cli.ts --compile --target=bun-windows-x64 --outfile dist/markado-windows-x64.exe
+
+      - name: Package binaries
+        run: |
+          cd dist
+          tar -czf markado-linux-x64.tar.gz markado-linux-x64
+          tar -czf markado-linux-arm64.tar.gz markado-linux-arm64
+          tar -czf markado-darwin-x64.tar.gz markado-darwin-x64
+          tar -czf markado-darwin-arm64.tar.gz markado-darwin-arm64
+          zip markado-windows-x64.zip markado-windows-x64.exe
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/*.tar.gz \
+            dist/*.zip \
+            --generate-notes
