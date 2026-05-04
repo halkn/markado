@@ -39,12 +39,18 @@ jobs:
 
       - name: Package binaries
         run: |
-          cd dist
-          tar -czf markado-linux-x64.tar.gz markado-linux-x64
-          tar -czf markado-linux-arm64.tar.gz markado-linux-arm64
-          tar -czf markado-darwin-x64.tar.gz markado-darwin-x64
-          tar -czf markado-darwin-arm64.tar.gz markado-darwin-arm64
-          zip markado-windows-x64.zip markado-windows-x64.exe
+          mkdir -p dist/package/linux-x64 dist/package/linux-arm64 dist/package/darwin-x64 dist/package/darwin-arm64 dist/package/windows-x64
+          cp dist/markado-linux-x64 dist/package/linux-x64/markado
+          cp dist/markado-linux-arm64 dist/package/linux-arm64/markado
+          cp dist/markado-darwin-x64 dist/package/darwin-x64/markado
+          cp dist/markado-darwin-arm64 dist/package/darwin-arm64/markado
+          cp dist/markado-windows-x64.exe dist/package/windows-x64/markado.exe
+          tar -czf dist/markado-linux-x64.tar.gz -C dist/package/linux-x64 markado
+          tar -czf dist/markado-linux-arm64.tar.gz -C dist/package/linux-arm64 markado
+          tar -czf dist/markado-darwin-x64.tar.gz -C dist/package/darwin-x64 markado
+          tar -czf dist/markado-darwin-arm64.tar.gz -C dist/package/darwin-arm64 markado
+          cd dist/package/windows-x64
+          zip ../../markado-windows-x64.zip markado.exe
 
       - name: Create GitHub Release
         env:
