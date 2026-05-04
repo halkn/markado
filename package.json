@@ -11,10 +11,12 @@
     "build": "bun build src/cli.ts --target=bun --outfile=dist/cli.js",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
+    "check:version": "bun run scripts/check-version.ts",
+    "version": "bun run scripts/update-version.ts",
     "lint": "oxlint",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "check": "bun run typecheck && bun run lint && bun run format:check && bun run test"
+    "check": "bun run check:version && bun run typecheck && bun run lint && bun run format:check && bun run test"
   },
   "dependencies": {
     "chokidar": "^4.0.3",

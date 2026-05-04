@@ -55,7 +55,23 @@ API paths are root-relative. Absolute paths and `..` traversal outside the wiki 
 ```sh
 bun run test
 bun run typecheck
+bun run check:version
 bun run lint
 bun run format:check
 bun run check
+```
+
+## Release
+
+Update the project version in `package.json` and `src/version.ts`:
+
+```sh
+bun run version 0.1.1
+```
+
+Commit the version change, merge it to `main`, then push a matching tag:
+
+```sh
+git tag v0.1.1
+git push origin v0.1.1
 ```

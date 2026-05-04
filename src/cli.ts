@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { startMarkadoServer } from "./server.ts";
+import { VERSION } from "./version.ts";
 import { resolveWikiContext } from "./wiki.ts";
 
 type CliOptions = {
@@ -12,14 +11,10 @@ type CliOptions = {
   open: boolean;
 };
 
-const packageJson = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf8")) as {
-  version: string;
-};
-
 const program = new Command()
   .name("markado")
   .description("Preview a local Markdown wiki in the browser")
-  .version(packageJson.version)
+  .version(VERSION)
   .argument("[path]", "Markdown file or wiki directory")
   .option("--port <number>", "server port", "6275")
   .option("--bind <address>", "bind address", "localhost")
