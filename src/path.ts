@@ -1,3 +1,4 @@
+import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, normalize, resolve, sep } from "node:path";
 
 export function isMarkdownPath(pathname: string): boolean {
@@ -12,7 +13,10 @@ export function stripMarkdownExtension(name: string): string {
   return name.replace(/\.md$/i, "");
 }
 
-export function assertSafeRelativePath(rootDir: string, relativePath: string): string {
+export async function assertSafeRelativePath(
+  rootDir: string,
+  relativePath: string,
+): Promise<string> {
   if (!relativePath || isAbsolute(relativePath)) {
     throw new Error("Path must be relative to the wiki root");
   }
@@ -25,6 +29,14 @@ export function assertSafeRelativePath(rootDir: string, relativePath: string): s
   const absolutePath = resolve(rootDir, normalizedRelative);
   const normalizedRoot = resolve(rootDir);
   if (absolutePath !== normalizedRoot && !absolutePath.startsWith(`${normalizedRoot}${sep}`)) {
+    throw new Error("Path escapes the wiki root");
+  }
+
+  const [realRoot, realPath] = await Promise.all([
+    realpath(normalizedRoot),
+    realpath(absolutePath),
+  ]);
+  if (realPath !== realRoot && !realPath.startsWith(`${realRoot}${sep}`)) {
     throw new Error("Path escapes the wiki root");
   }
 

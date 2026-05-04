@@ -119,14 +119,14 @@ async function renderRoute(context: WikiContext, url: URL): Promise<Response> {
     throw new Error("Render path must be a Markdown file");
   }
 
-  const absolutePath = assertSafeRelativePath(context.rootDir, pagePath);
+  const absolutePath = await assertSafeRelativePath(context.rootDir, pagePath);
   const source = await Bun.file(absolutePath).text();
   return jsonResponse(renderMarkdown(normalizeRootRelativePath(pagePath), source));
 }
 
 async function assetRoute(context: WikiContext, url: URL): Promise<Response> {
   const assetPath = requiredPathParam(url);
-  const absolutePath = assertSafeRelativePath(context.rootDir, assetPath);
+  const absolutePath = await assertSafeRelativePath(context.rootDir, assetPath);
   const file = Bun.file(absolutePath);
   if (!(await file.exists())) {
     return new Response("Not found", { status: 404 });
