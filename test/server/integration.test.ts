@@ -1,0 +1,76 @@
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { resolveWikiContext } from "../../src/core/context.ts";
+import { startMarkadoServer, type MarkadoServer } from "../../src/server/index.ts";
+import type { TreeResponse } from "../../src/types.ts";
+import { createWiki } from "../helpers/wiki.ts";
+
+/** Structural view of a stream reader, so bun-types and lib.dom both satisfy it. */
+type ChunkReader = {
+  read(): Promise<{ done: boolean; value?: Uint8Array }>;
+  cancel(): Promise<void>;
+};
+
+describe("end-to-end server", () => {
+  let root: string;
+  let server: MarkadoServer;
+
+  beforeAll(async () => {
+    root = createWiki({
+      ".order": "Home\n",
+      "Home.md": "# Home\n",
+      "Guide/Intro.md": "# Intro\n",
+    });
+    server = await startMarkadoServer(await resolveWikiContext(root), "localhost", 0);
+  });
+
+  afterAll(async () => {
+    await server.stop();
+  });
+
+  test("detects the ADO flavor from the wiki root", async () => {
+    const tree = (await (await fetch(`${server.url}api/tree`)).json()) as TreeResponse;
+    expect(tree.flavor).toBe("ado");
+  });
+
+  test("serves the frontend shell", async () => {
+    const response = await fetch(server.url);
+    expect(response.headers.get("Content-Type")).toContain("text/html");
+    expect(await response.text()).toContain('<main id="preview"');
+  });
+
+  test("pushes a file_changed event when a page is edited", async () => {
+    const response = await fetch(`${server.url}api/events`);
+    const reader: ChunkReader = response.body!.getReader();
+
+    expect(await readEvent(reader)).toContain("event: tree_changed");
+
+    // chokidar needs a moment to arm its watchers before the write lands.
+    await Bun.sleep(300);
+    writeFileSync(join(root, "Home.md"), "# Home\n\nedited\n");
+
+    expect(await readEvent(reader)).toContain("event: file_changed");
+    await reader.cancel();
+  }, 15_000);
+});
+
+async function readEvent(reader: ChunkReader): Promise<string> {
+  const decoder = new TextDecoder();
+  const deadline = Date.now() + 10_000;
+
+  while (Date.now() < deadline) {
+    // A stream is read one chunk at a time; there is nothing to parallelize.
+    // oxlint-disable-next-line no-await-in-loop
+    const result = await reader.read();
+    if (result.done) {
+      throw new Error("stream closed before an event arrived");
+    }
+    const text = decoder.decode(result.value);
+    if (text.includes("event: ")) {
+      return text;
+    }
+  }
+
+  throw new Error("timed out waiting for an event");
+}

@@ -1,3 +1,5 @@
+import type { Flavor, FlavorName } from "./flavors/types.ts";
+
 export type TreeNode = {
   name: string;
   path: string | null;
@@ -6,6 +8,7 @@ export type TreeNode = {
 };
 
 export type TreeResponse = {
+  flavor: FlavorName;
   mode: "file" | "tree";
   initialPagePath: string | null;
   root: TreeNode;
@@ -29,4 +32,5 @@ export type WikiContext = {
   rootDir: string;
   initialPagePath: string | null;
   mode: "file" | "tree";
+  flavor: Flavor;
 };
