@@ -57,6 +57,16 @@ describe("plain tree scanning", () => {
     expect(tree.files).toContain("Guide/Intro.md");
   });
 
+  test("leaves dependency directories out of the tree", async () => {
+    const root = createWiki({
+      "Home.md": "# Home\n",
+      "node_modules/react/README.md": "# react\n",
+    });
+
+    const tree = await scanWiki(wikiContext(root, plainFlavor));
+    expect(tree.files).toEqual(["Home.md"]);
+  });
+
   test("stops descending past the depth limit instead of recursing forever", async () => {
     const root = createWiki({});
     const deep = Array.from({ length: 40 }, (_, index) => `d${index}`).join("/");
