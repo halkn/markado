@@ -58,7 +58,7 @@ describe("end-to-end server", () => {
     const response = await fetch(`${server.url}api/events`);
     const reader: ChunkReader = response.body!.getReader();
 
-    expect(await readEvent(reader)).toContain("event: tree_changed");
+    expect(await readEvent(reader)).toBe(": connected\n\n");
 
     // chokidar needs a moment to arm its watchers before the write lands.
     await Bun.sleep(300);
