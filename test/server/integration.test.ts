@@ -58,7 +58,8 @@ describe("end-to-end server", () => {
     const response = await fetch(`${server.url}api/events`);
     const reader: ChunkReader = response.body!.getReader();
 
-    expect(await readEvent(reader)).toBe(": connected\n\n");
+    // Not `readEvent`: the greeting is a comment, which that helper skips.
+    expect(await readChunk(reader)).toContain(": connected");
 
     // chokidar needs a moment to arm its watchers before the write lands.
     await Bun.sleep(300);
@@ -69,6 +70,15 @@ describe("end-to-end server", () => {
   }, 15_000);
 });
 
+async function readChunk(reader: ChunkReader): Promise<string> {
+  const result = await reader.read();
+  if (result.done) {
+    throw new Error("stream closed before anything arrived");
+  }
+  return new TextDecoder().decode(result.value);
+}
+
+/** Skips the keep-alive comments the hub sends between real events. */
 async function readEvent(reader: ChunkReader): Promise<string> {
   const decoder = new TextDecoder();
   const deadline = Date.now() + 10_000;
