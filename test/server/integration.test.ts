@@ -34,10 +34,24 @@ describe("end-to-end server", () => {
     expect(tree.flavor).toBe("ado");
   });
 
-  test("serves the frontend shell", async () => {
-    const response = await fetch(server.url);
-    expect(response.headers.get("Content-Type")).toContain("text/html");
-    expect(await response.text()).toContain('<main id="preview"');
+  // The markup itself comes from the Vite build, which `bun run check` does not
+  // run, so this asserts the routing instead: every non-API path answers with
+  // the shell, which is what lets `/read/...` survive a reload.
+  test("serves the app shell for the root and for page URLs", async () => {
+    for (const path of ["", "read/Home.md", "read/Guide/Intro.md"]) {
+      // Each response has to be read before the next request is made.
+      // oxlint-disable-next-line no-await-in-loop
+      const response = await fetch(server.url + path);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toContain("text/html");
+      // oxlint-disable-next-line no-await-in-loop
+      expect(await response.text()).toContain("<!doctype html>");
+    }
+  });
+
+  test("answers 404 for a bundled asset that does not exist", async () => {
+    const response = await fetch(`${server.url}assets/stale-x1.js`);
+    expect(response.status).toBe(404);
   });
 
   test("pushes a file_changed event when a page is edited", async () => {
