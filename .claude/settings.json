@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(bun run:*)",
+      "Bash(bun test:*)",
+      "Bash(bun build:*)",
+      "Bash(bun --version)",
+      "Bash(bun scripts/:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(./node_modules/.bin/oxlint:*)",
+      "Bash(./node_modules/.bin/oxfmt:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git ls-files:*)",
+      "Bash(rg:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(pwd)",
+      "Bash(file:*)"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "allowRead": ["./"]
+    }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path // empty' | { read -r f; case \"$f\" in \"$PWD\"/*.ts|\"$PWD\"/*.tsx|\"$PWD\"/*.js|\"$PWD\"/*.mjs|\"$PWD\"/*.json|\"$PWD\"/*.md) ./node_modules/.bin/oxfmt --write \"$f\" >/dev/null 2>&1 ;; esac; } || true",
+            "statusMessage": "Formatting with oxfmt"
+          }
+        ]
+      }
+    ]
+  }
+}
