@@ -1,6 +1,6 @@
 {
   "name": "mdiv",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local Azure DevOps Wiki flavored Markdown previewer.",
   "bin": {
     "mdiv": "./dist/cli.js"
