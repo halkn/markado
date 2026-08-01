@@ -24,19 +24,30 @@ function loadMermaid(): Promise<Mermaid | null> {
   return loading;
 }
 
-/** `load` is injected by tests, which have no bundler to split the chunk. */
-export async function renderMermaidBlocks(
-  container: HTMLElement,
+/**
+ * Rewrites the document HTML instead of the DOM React has already committed.
+ * Writing into that DOM loses every diagram the moment anything re-injects the
+ * document — and when the re-injection lands between the query and the render,
+ * the replacement happens on nodes that are no longer attached to the page, so
+ * Mermaid reports success and the reader sees nothing.
+ *
+ * `load` is injected by tests, which have no bundler to split the chunk.
+ */
+export async function renderMermaidHtml(
+  html: string,
   load: MermaidLoader = loadMermaid,
-): Promise<void> {
-  const blocks = [...container.querySelectorAll("code.language-mermaid")];
+): Promise<string> {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+
+  const blocks = [...template.content.querySelectorAll("code.language-mermaid")];
   if (blocks.length === 0) {
-    return;
+    return html;
   }
 
   const mermaid = await load();
   if (!mermaid) {
-    return;
+    return html;
   }
 
   mermaid.initialize({
@@ -50,7 +61,7 @@ export async function renderMermaidBlocks(
       continue;
     }
 
-    const figure = document.createElement("div");
+    const figure = template.ownerDocument.createElement("div");
     figure.className = "mermaid";
     try {
       // Sequential: mermaid keeps global render state, so parallel renders of
@@ -67,4 +78,6 @@ export async function renderMermaidBlocks(
     }
     pre.replaceWith(figure);
   }
+
+  return template.innerHTML;
 }

@@ -39,26 +39,41 @@ export function createSseHub(): SseHub {
   };
 }
 
+/**
+ * Comments (`:` lines) are ignored by `EventSource`, so they open and hold the
+ * stream without looking like a change. Greeting a client with a real event
+ * instead made every reconnect reload the view, and a silent stream is dropped
+ * by `Bun.serve`'s idle timeout, which reconnects on a loop.
+ */
+const HEARTBEAT_MS = 5_000;
+
 function connect(clients: Set<SseClient>): Response {
   const encoder = new TextEncoder();
   let client: SseClient | null = null;
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
 
   const stream = new ReadableStream({
     start(controller) {
       const drop = () => {
+        if (heartbeat) {
+          clearInterval(heartbeat);
+          heartbeat = null;
+        }
         if (client) {
           clients.delete(client);
         }
       };
 
+      const write = (chunk: string) => {
+        try {
+          controller.enqueue(encoder.encode(chunk));
+        } catch {
+          drop();
+        }
+      };
+
       client = {
-        send: (event) => {
-          try {
-            controller.enqueue(encoder.encode(`event: ${event}\ndata: {}\n\n`));
-          } catch {
-            drop();
-          }
-        },
+        send: (event) => write(`event: ${event}\ndata: {}\n\n`),
         close: () => {
           drop();
           try {
@@ -70,9 +85,16 @@ function connect(clients: Set<SseClient>): Response {
       };
 
       clients.add(client);
-      client.send("tree_changed");
+      write(": connected\n\n");
+      heartbeat = setInterval(() => write(": ping\n\n"), HEARTBEAT_MS);
+      // The server's own lifetime decides when to stop, not this timer.
+      heartbeat.unref?.();
     },
     cancel() {
+      if (heartbeat) {
+        clearInterval(heartbeat);
+        heartbeat = null;
+      }
       if (client) {
         clients.delete(client);
       }

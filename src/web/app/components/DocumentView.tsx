@@ -1,6 +1,6 @@
-import { useEffect, useRef, type JSX, type MouseEvent } from "react";
+import { type JSX, type MouseEvent } from "react";
 import type { RenderResponse } from "../../../types.ts";
-import { renderMermaidBlocks } from "@/lib/mermaid.ts";
+import { useMermaidHtml } from "@/hooks/useMermaidHtml.ts";
 
 export type DocumentViewProps = {
   document: RenderResponse;
@@ -12,13 +12,7 @@ export type DocumentViewProps = {
  * carry `data-mdiv-*`, so navigation is intercepted without re-parsing hrefs.
  */
 export function DocumentView({ document, onNavigate }: DocumentViewProps): JSX.Element {
-  const articleRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    if (articleRef.current) {
-      void renderMermaidBlocks(articleRef.current);
-    }
-  }, [document.html]);
+  const html = useMermaidHtml(document.html);
 
   const onClick = (event: MouseEvent<HTMLElement>) => {
     if (event.defaultPrevented || event.button !== 0) {
@@ -43,10 +37,9 @@ export function DocumentView({ document, onNavigate }: DocumentViewProps): JSX.E
     // to the keyboard; the article itself is not interactive.
     // oxlint-disable-next-line click-events-have-key-events, no-noninteractive-element-interactions
     <article
-      ref={articleRef}
       className="markdown-body"
       onClick={onClick}
-      dangerouslySetInnerHTML={{ __html: document.html }}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }

@@ -35,38 +35,51 @@ export function useWiki(pagePath: string | null): {
  * Runs `request` on mount and whenever it changes, and hands back a reload
  * function. Responses that a newer request has already superseded are dropped,
  * which is what keeps a slow reload from overwriting a fresh page.
+ *
+ * A reload keeps what is already on screen. Falling back to `loading` unmounts
+ * the document, and anything the browser has rendered into it — a Mermaid
+ * diagram, the scroll position — is gone by the time the reply arrives.
  */
 function useLoadable<T>(request: () => Promise<T> | null): [Loadable<T> | null, () => void] {
   const [state, setState] = useState<Loadable<T> | null>(null);
   const latest = useRef(0);
 
-  const run = useCallback(() => {
-    const pending = request();
-    if (pending === null) {
-      latest.current += 1;
-      setState(null);
-      return;
-    }
+  const run = useCallback(
+    (keepCurrent: boolean) => {
+      const pending = request();
+      if (pending === null) {
+        latest.current += 1;
+        setState(null);
+        return;
+      }
 
-    const id = (latest.current += 1);
-    setState({ status: "loading" });
-    pending.then(
-      (value) => {
-        if (id === latest.current) {
-          setState({ status: "ready", value });
-        }
-      },
-      (error: unknown) => {
-        if (id === latest.current) {
-          setState({ status: "error", message: errorMessage(error) });
-        }
-      },
-    );
-  }, [request]);
+      const id = (latest.current += 1);
+      setState((current) =>
+        keepCurrent && current?.status === "ready" ? current : { status: "loading" },
+      );
+      pending.then(
+        (value) => {
+          if (id === latest.current) {
+            setState({ status: "ready", value });
+          }
+        },
+        (error: unknown) => {
+          if (id === latest.current) {
+            setState({ status: "error", message: errorMessage(error) });
+          }
+        },
+      );
+    },
+    [request],
+  );
 
-  useEffect(run, [run]);
+  useEffect(() => run(false), [run]);
 
-  return [state, run];
+  // Wrapped rather than passed straight through: the caller hands this to an
+  // `EventSource` listener, which would supply the `Event` as `keepCurrent`.
+  const reload = useCallback(() => run(true), [run]);
+
+  return [state, reload];
 }
 
 function errorMessage(error: unknown): string {

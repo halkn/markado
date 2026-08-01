@@ -89,7 +89,7 @@ describe("wired app", () => {
 
     const response = await wired.app.fetch(new Request("http://localhost/api/events"));
     const reader: ChunkReader = response.body!.getReader();
-    expect(await readEvent(reader)).toContain("event: tree_changed");
+    expect(await readEvent(reader)).toBe(": connected\n\n");
 
     watcher.emit("file_changed");
     expect(await readEvent(reader)).toContain("event: file_changed");

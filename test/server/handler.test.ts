@@ -118,13 +118,25 @@ describe("HTTP API", () => {
       expect(response.headers.get("Content-Type")).toContain("text/event-stream");
 
       const reader = response.body?.getReader();
-      expect(decode(await reader?.read())).toContain("event: tree_changed");
+      expect(decode(await reader?.read())).toBe(": connected\n\n");
 
       // The old handler kept its own Set, so a watcher event never reached a
       // client that had connected through the request handler.
       expect(app.hub.size).toBe(1);
       app.hub.emit("file_changed");
       expect(decode(await reader?.read())).toContain("event: file_changed");
+
+      await reader?.cancel();
+    });
+
+    // The bug this guards: connecting greeted the client with `tree_changed`,
+    // so every reconnect looked like a file edit and reloaded the whole view.
+    test("opening the stream is not a change event", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n" });
+      const response = await app.fetch(new Request("http://localhost/api/events"));
+
+      const reader = response.body?.getReader();
+      expect(decode(await reader?.read())).not.toContain("event:");
 
       await reader?.cancel();
     });
