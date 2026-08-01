@@ -1,6 +1,6 @@
-# markado
+# mdiv
 
-`markado` is a local Bun + TypeScript CLI for reading Markdown in the browser. The core is a plain
+`mdiv` is a local Bun + TypeScript CLI for reading Markdown in the browser. The core is a plain
 local Markdown reader; Azure DevOps Wiki conventions are layered on top as an optional flavor. It is
 designed for trusted local documents.
 
@@ -14,7 +14,7 @@ bun run dev -- [flags] [path]
 CLI:
 
 ```sh
-markado [flags] [path]
+mdiv [flags] [path]
 ```
 
 Flags:
@@ -85,7 +85,7 @@ Azure DevOps Wiki compatibility (`ado` flavor):
 API paths are root-relative. Absolute paths and `..` traversal outside the wiki root are rejected
 with `400`; safe paths that do not exist return `404`.
 
-Rendered links carry `data-markado-kind`, `data-markado-path`, and `data-markado-anchor` alongside
+Rendered links carry `data-mdiv-kind`, `data-mdiv-path`, and `data-mdiv-anchor` alongside
 `href`, so a frontend can route internally without re-parsing URLs.
 
 ## Architecture

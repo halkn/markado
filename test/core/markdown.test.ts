@@ -66,8 +66,8 @@ describe("references", () => {
     ).html;
 
     expect(html).toContain('href="/?path=Guide%2FNext.md#Part"');
-    expect(html).toContain('data-markado-kind="page"');
-    expect(html).toContain('data-markado-path="Guide/Next.md"');
+    expect(html).toContain('data-mdiv-kind="page"');
+    expect(html).toContain('data-mdiv-path="Guide/Next.md"');
     expect(html).toContain('src="/api/asset?path=.attachments%2Fdiagram.png"');
     expect(html).toContain('href="https://example.com"');
     expect(html).not.toContain('href="/?path=https');

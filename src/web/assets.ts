@@ -3,7 +3,7 @@ export const INDEX_HTML = `<!doctype html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>markado</title>
+    <title>mdiv</title>
     <link rel="stylesheet" href="/assets/style.css">
     <script type="module" src="/assets/app.js"></script>
     <script type="module">
@@ -15,7 +15,7 @@ export const INDEX_HTML = `<!doctype html>
   <body>
     <aside id="tree-pane">
       <div class="pane-header">
-        <strong>markado</strong>
+        <strong>mdiv</strong>
         <button id="theme-button" type="button" title="Toggle theme">◐</button>
       </div>
       <nav id="tree"></nav>
@@ -172,26 +172,26 @@ button {
   padding: 6px 8px;
 }
 
-.markado-toc ul {
+.mdiv-toc ul {
   list-style: none;
   margin: 0;
   padding-left: 0;
 }
 
-.markado-toc-level-2 {
+.mdiv-toc-level-2 {
   padding-left: 12px;
 }
 
-.markado-toc-level-3 {
+.mdiv-toc-level-3 {
   padding-left: 24px;
 }
 
-.markado-toc-level-4 {
+.mdiv-toc-level-4 {
   padding-left: 36px;
 }
 
-.markado-toc-level-5,
-.markado-toc-level-6 {
+.mdiv-toc-level-5,
+.mdiv-toc-level-6 {
   padding-left: 48px;
 }
 
@@ -217,10 +217,10 @@ let headings = [];
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  localStorage.setItem("markado-theme", theme);
+  localStorage.setItem("mdiv-theme", theme);
 }
 
-applyTheme(localStorage.getItem("markado-theme") || "light");
+applyTheme(localStorage.getItem("mdiv-theme") || "light");
 themeButton.addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
 });
@@ -270,19 +270,19 @@ async function loadPage(path) {
   }
   const data = await response.json();
   headings = data.headings;
-  document.title = data.title + " - markado";
+  document.title = data.title + " - mdiv";
   previewEl.innerHTML = data.html;
   renderOutline();
   await renderMermaid();
 }
 
-// Internal page links carry data-markado-* so navigation stays client side
+// Internal page links carry data-mdiv-* so navigation stays client side
 // without the frontend having to re-parse the href the server produced.
 previewEl.addEventListener("click", (event) => {
-  const link = event.target.closest('a[data-markado-kind="page"]');
+  const link = event.target.closest('a[data-mdiv-kind="page"]');
   if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
   event.preventDefault();
-  navigate(link.dataset.markadoPath, link.dataset.markadoAnchor);
+  navigate(link.dataset.mdivPath, link.dataset.mdivAnchor);
 });
 
 function scrollToAnchor(anchor) {
@@ -303,7 +303,7 @@ async function renderMermaid() {
   for (const [index, block] of [...blocks].entries()) {
     const container = document.createElement("div");
     container.className = "mermaid";
-    const result = await mermaid.render("markado-mermaid-" + index + "-" + Date.now(), block.textContent || "");
+    const result = await mermaid.render("mdiv-mermaid-" + index + "-" + Date.now(), block.textContent || "");
     container.innerHTML = result.svg;
     block.closest("pre").replaceWith(container);
   }

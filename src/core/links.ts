@@ -69,14 +69,14 @@ export function linkDataAttributes(target: LinkTarget): Record<string, string> {
   switch (target.kind) {
     case "page":
       return {
-        "data-markado-kind": "page",
-        "data-markado-path": target.path,
-        ...(target.anchor ? { "data-markado-anchor": target.anchor } : {}),
+        "data-mdiv-kind": "page",
+        "data-mdiv-path": target.path,
+        ...(target.anchor ? { "data-mdiv-anchor": target.anchor } : {}),
       };
     case "asset":
-      return { "data-markado-kind": "asset", "data-markado-path": target.path };
+      return { "data-mdiv-kind": "asset", "data-mdiv-path": target.path };
     case "anchor":
-      return { "data-markado-kind": "anchor", "data-markado-anchor": target.id };
+      return { "data-mdiv-kind": "anchor", "data-mdiv-anchor": target.id };
     case "external":
       return {};
   }

@@ -45,10 +45,10 @@ function renderToc(md: MarkdownIt, headings: Heading[]): string {
   const items = headings
     .map(
       (heading) =>
-        `<li class="markado-toc-item markado-toc-level-${heading.level}">` +
+        `<li class="mdiv-toc-item mdiv-toc-level-${heading.level}">` +
         `<a href="#${encodeURIComponent(heading.id)}">${md.utils.escapeHtml(heading.text)}</a></li>`,
     )
     .join("\n");
 
-  return `<nav class="markado-toc">\n<ul>\n${items}\n</ul>\n</nav>\n`;
+  return `<nav class="mdiv-toc">\n<ul>\n${items}\n</ul>\n</nav>\n`;
 }

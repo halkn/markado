@@ -31,26 +31,26 @@ jobs:
       - name: Build binaries
         run: |
           mkdir -p dist
-          bun build src/cli.ts --compile --target=bun-linux-x64 --outfile dist/markado-linux-x64
-          bun build src/cli.ts --compile --target=bun-linux-arm64 --outfile dist/markado-linux-arm64
-          bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist/markado-darwin-x64
-          bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/markado-darwin-arm64
-          bun build src/cli.ts --compile --target=bun-windows-x64 --outfile dist/markado-windows-x64.exe
+          bun build src/cli.ts --compile --target=bun-linux-x64 --outfile dist/mdiv-linux-x64
+          bun build src/cli.ts --compile --target=bun-linux-arm64 --outfile dist/mdiv-linux-arm64
+          bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist/mdiv-darwin-x64
+          bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/mdiv-darwin-arm64
+          bun build src/cli.ts --compile --target=bun-windows-x64 --outfile dist/mdiv-windows-x64.exe
 
       - name: Package binaries
         run: |
           mkdir -p dist/package/linux-x64 dist/package/linux-arm64 dist/package/darwin-x64 dist/package/darwin-arm64 dist/package/windows-x64
-          cp dist/markado-linux-x64 dist/package/linux-x64/markado
-          cp dist/markado-linux-arm64 dist/package/linux-arm64/markado
-          cp dist/markado-darwin-x64 dist/package/darwin-x64/markado
-          cp dist/markado-darwin-arm64 dist/package/darwin-arm64/markado
-          cp dist/markado-windows-x64.exe dist/package/windows-x64/markado.exe
-          tar -czf dist/markado-linux-x64.tar.gz -C dist/package/linux-x64 markado
-          tar -czf dist/markado-linux-arm64.tar.gz -C dist/package/linux-arm64 markado
-          tar -czf dist/markado-darwin-x64.tar.gz -C dist/package/darwin-x64 markado
-          tar -czf dist/markado-darwin-arm64.tar.gz -C dist/package/darwin-arm64 markado
+          cp dist/mdiv-linux-x64 dist/package/linux-x64/mdiv
+          cp dist/mdiv-linux-arm64 dist/package/linux-arm64/mdiv
+          cp dist/mdiv-darwin-x64 dist/package/darwin-x64/mdiv
+          cp dist/mdiv-darwin-arm64 dist/package/darwin-arm64/mdiv
+          cp dist/mdiv-windows-x64.exe dist/package/windows-x64/mdiv.exe
+          tar -czf dist/mdiv-linux-x64.tar.gz -C dist/package/linux-x64 mdiv
+          tar -czf dist/mdiv-linux-arm64.tar.gz -C dist/package/linux-arm64 mdiv
+          tar -czf dist/mdiv-darwin-x64.tar.gz -C dist/package/darwin-x64 mdiv
+          tar -czf dist/mdiv-darwin-arm64.tar.gz -C dist/package/darwin-arm64 mdiv
           cd dist/package/windows-x64
-          zip ../../markado-windows-x64.zip markado.exe
+          zip ../../mdiv-windows-x64.zip mdiv.exe
 
       - name: Create GitHub Release
         env:

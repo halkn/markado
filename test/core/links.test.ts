@@ -72,9 +72,9 @@ describe("link resolution", () => {
 
   test("exposes page targets to the frontend as data attributes", () => {
     expect(linkDataAttributes({ kind: "page", path: "Guide/Next.md", anchor: "Part" })).toEqual({
-      "data-markado-kind": "page",
-      "data-markado-path": "Guide/Next.md",
-      "data-markado-anchor": "Part",
+      "data-mdiv-kind": "page",
+      "data-mdiv-path": "Guide/Next.md",
+      "data-mdiv-anchor": "Part",
     });
     expect(linkDataAttributes({ kind: "external", href: "https://example.com" })).toEqual({});
   });

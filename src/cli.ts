@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { spawn } from "node:child_process";
 import { resolveWikiContext } from "./core/context.ts";
 import { FLAVOR_SELECTIONS, isFlavorSelection } from "./flavors/registry.ts";
-import { startMarkadoServer } from "./server/index.ts";
+import { startMdivServer } from "./server/index.ts";
 import { VERSION } from "./version.ts";
 
 type CliOptions = {
@@ -14,7 +14,7 @@ type CliOptions = {
 };
 
 const program = new Command()
-  .name("markado")
+  .name("mdiv")
   .description("Preview local Markdown in the browser")
   .version(VERSION)
   .argument("[path]", "Markdown file or wiki directory")
@@ -36,12 +36,12 @@ if (!isFlavorSelection(options.flavor)) {
 }
 
 const context = await resolveWikiContext(targetPath, options.flavor);
-const server = await startMarkadoServer(context, options.bind, port);
+const server = await startMdivServer(context, options.bind, port);
 const previewUrl = context.initialPagePath
   ? `${server.url}?path=${encodeURIComponent(context.initialPagePath)}`
   : server.url;
 
-console.log(`markado serving ${context.rootDir} (${context.flavor.name})`);
+console.log(`mdiv serving ${context.rootDir} (${context.flavor.name})`);
 console.log(previewUrl);
 
 if (options.open) {

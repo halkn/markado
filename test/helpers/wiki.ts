@@ -9,7 +9,7 @@ import type { WikiContext } from "../../src/types.ts";
  * directory; every other key writes a file, creating parents as needed.
  */
 export function createWiki(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), "markado-"));
+  const root = mkdtempSync(join(tmpdir(), "mdiv-"));
 
   for (const [relativePath, contents] of Object.entries(files)) {
     const absolutePath = join(root, relativePath);

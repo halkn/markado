@@ -88,13 +88,13 @@ describe("ADO Markdown syntax", () => {
   });
 
   test("renders nothing for [[_TOC_]] on a page without headings", () => {
-    expect(render("Home.md", "[[_TOC_]]\n\ntext\n").html).not.toContain("markado-toc");
+    expect(render("Home.md", "[[_TOC_]]\n\ntext\n").html).not.toContain("mdiv-toc");
   });
 
   test("leaves [[_TOC_]] alone inside a fenced code block", () => {
     const html = render("Home.md", "# Intro\n\n```\n[[_TOC_]]\n```\n").html;
     expect(html).toContain("[[_TOC_]]");
-    expect(html).not.toContain("markado-toc");
+    expect(html).not.toContain("mdiv-toc");
   });
 
   test("turns ::: mermaid blocks into mermaid fences", () => {
@@ -120,7 +120,7 @@ describe("ADO links", () => {
   test("resolves root-absolute page links", () => {
     const html = render("Guide/Intro.md", "[Install](/Guide/Install)\n").html;
     expect(html).toContain('href="/?path=Guide%2FInstall.md"');
-    expect(html).toContain('data-markado-path="Guide/Install.md"');
+    expect(html).toContain('data-mdiv-path="Guide/Install.md"');
   });
 
   test("resolves extension-less relative page links", () => {
@@ -140,7 +140,7 @@ describe("ADO links", () => {
       'href="/?path=Getting%20Started.md"',
     );
     expect(render("Home.md", "[G](/%E3%82%AC%E3%82%A4%E3%83%89)\n").html).toContain(
-      'data-markado-path="ガイド.md"',
+      'data-mdiv-path="ガイド.md"',
     );
   });
 

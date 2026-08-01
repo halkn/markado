@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveWikiContext } from "../../src/core/context.ts";
-import { startMarkadoServer, type MarkadoServer } from "../../src/server/index.ts";
+import { startMdivServer, type MdivServer } from "../../src/server/index.ts";
 import type { TreeResponse } from "../../src/types.ts";
 import { createWiki } from "../helpers/wiki.ts";
 
@@ -14,7 +14,7 @@ type ChunkReader = {
 
 describe("end-to-end server", () => {
   let root: string;
-  let server: MarkadoServer;
+  let server: MdivServer;
 
   beforeAll(async () => {
     root = createWiki({
@@ -22,7 +22,7 @@ describe("end-to-end server", () => {
       "Home.md": "# Home\n",
       "Guide/Intro.md": "# Intro\n",
     });
-    server = await startMarkadoServer(await resolveWikiContext(root), "localhost", 0);
+    server = await startMdivServer(await resolveWikiContext(root), "localhost", 0);
   });
 
   afterAll(async () => {

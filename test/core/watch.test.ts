@@ -61,7 +61,7 @@ describe("change classification", () => {
     expect(classifyChange("unlinkDir", "Guide")).toBe("tree_changed");
   });
 
-  test("ignores events markado does not act on", () => {
+  test("ignores events mdiv does not act on", () => {
     expect(classifyChange("ready", "")).toBeNull();
     expect(classifyChange("error", "")).toBeNull();
   });

@@ -1,23 +1,23 @@
 import { watchWiki, type WatchFactory, type WikiWatcher } from "../core/watch.ts";
 import type { WikiContext } from "../types.ts";
-import { createApp, type MarkadoApp } from "./handler.ts";
+import { createApp, type MdivApp } from "./handler.ts";
 
-export type MarkadoServer = {
+export type MdivServer = {
   url: string;
   stop: () => Promise<void>;
 };
 
 /** The app and its file watcher, wired together but not yet listening. */
 export type WiredApp = {
-  app: MarkadoApp;
+  app: MdivApp;
   watcher: WikiWatcher;
   close: () => Promise<void>;
 };
 
-export { createApp, createRequestHandler, type MarkadoApp } from "./handler.ts";
+export { createApp, createRequestHandler, type MdivApp } from "./handler.ts";
 
 /**
- * Split out from `startMarkadoServer` so the watcher-to-hub wiring can be
+ * Split out from `startMdivServer` so the watcher-to-hub wiring can be
  * tested without binding a socket or relying on real filesystem events. A
  * broken connection here is invisible to tests that emit on the hub directly.
  */
@@ -38,11 +38,11 @@ export function createWiredApp(
   };
 }
 
-export async function startMarkadoServer(
+export async function startMdivServer(
   context: WikiContext,
   bind: string,
   port: number,
-): Promise<MarkadoServer> {
+): Promise<MdivServer> {
   const wired = createWiredApp(context);
   const server = Bun.serve({ hostname: bind, port, fetch: wired.app.fetch });
 

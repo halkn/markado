@@ -41,8 +41,8 @@ describe("path safety", () => {
   });
 
   test("rejects symlink escapes outside the wiki root", async () => {
-    const root = mkdtempSync(join(tmpdir(), "markado-root-"));
-    const outside = mkdtempSync(join(tmpdir(), "markado-outside-"));
+    const root = mkdtempSync(join(tmpdir(), "mdiv-root-"));
+    const outside = mkdtempSync(join(tmpdir(), "mdiv-outside-"));
     writeFileSync(join(outside, "secret.md"), "# Secret\n");
     symlinkSync(outside, join(root, "linked"));
 

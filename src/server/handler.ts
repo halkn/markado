@@ -7,12 +7,12 @@ import { assetRoute } from "./routes/asset.ts";
 import { renderRoute } from "./routes/render.ts";
 import { createSseHub, type SseHub } from "./sse.ts";
 
-export type MarkadoApp = {
+export type MdivApp = {
   fetch: (request: Request) => Promise<Response>;
   hub: SseHub;
 };
 
-export function createApp(context: WikiContext): MarkadoApp {
+export function createApp(context: WikiContext): MdivApp {
   const hub = createSseHub();
 
   const fetch = async (request: Request): Promise<Response> => {

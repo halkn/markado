@@ -1,9 +1,9 @@
 {
-  "name": "markado",
+  "name": "mdiv",
   "version": "0.1.1",
   "description": "Local Azure DevOps Wiki flavored Markdown previewer.",
   "bin": {
-    "markado": "./dist/cli.js"
+    "mdiv": "./dist/cli.js"
   },
   "type": "module",
   "scripts": {
