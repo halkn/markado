@@ -3,7 +3,7 @@ export const INDEX_HTML = `<!doctype html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>markado</title>
+    <title>mdiv</title>
     <link rel="stylesheet" href="/assets/style.css">
     <script type="module" src="/assets/app.js"></script>
     <script type="module">
@@ -15,7 +15,7 @@ export const INDEX_HTML = `<!doctype html>
   <body>
     <aside id="tree-pane">
       <div class="pane-header">
-        <strong>markado</strong>
+        <strong>mdiv</strong>
         <button id="theme-button" type="button" title="Toggle theme">◐</button>
       </div>
       <nav id="tree"></nav>
@@ -172,6 +172,29 @@ button {
   padding: 6px 8px;
 }
 
+.mdiv-toc ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+
+.mdiv-toc-level-2 {
+  padding-left: 12px;
+}
+
+.mdiv-toc-level-3 {
+  padding-left: 24px;
+}
+
+.mdiv-toc-level-4 {
+  padding-left: 36px;
+}
+
+.mdiv-toc-level-5,
+.mdiv-toc-level-6 {
+  padding-left: 48px;
+}
+
 @media (max-width: 900px) {
   body {
     grid-template-columns: 1fr;
@@ -194,10 +217,10 @@ let headings = [];
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  localStorage.setItem("markado-theme", theme);
+  localStorage.setItem("mdiv-theme", theme);
 }
 
-applyTheme(localStorage.getItem("markado-theme") || "light");
+applyTheme(localStorage.getItem("mdiv-theme") || "light");
 themeButton.addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
 });
@@ -205,6 +228,7 @@ themeButton.addEventListener("click", () => {
 async function loadTree() {
   const response = await fetch("/api/tree");
   const data = await response.json();
+  document.documentElement.dataset.flavor = data.flavor;
   if (!currentPath) currentPath = data.initialPagePath;
   treeEl.innerHTML = renderTree([data.root]);
   treeEl.querySelectorAll("[data-path]").forEach((item) => {
@@ -222,31 +246,48 @@ function renderTree(nodes) {
     const label = escapeHtml(node.name);
     const children = node.children?.length ? renderTree(node.children) : "";
     if (node.kind === "file") {
-      return '<li><a class="tree-item" data-path="' + escapeAttr(node.path) + '" href="/?path=' + encodeURIComponent(node.path) + '">' + label + '</a>' + children + '</li>';
+      return '<li><a class="tree-item" data-path="' + escapeHtml(node.path) + '" href="/?path=' + encodeURIComponent(node.path) + '">' + label + '</a>' + children + '</li>';
     }
     return '<li><div class="dir-label">' + label + '</div>' + children + '</li>';
   }).join("") + "</ul>";
 }
 
-async function navigate(path) {
+async function navigate(path, anchor) {
   currentPath = path;
-  history.pushState(null, "", "/?path=" + encodeURIComponent(path));
+  const url = "/?path=" + encodeURIComponent(path) + (anchor ? "#" + anchor : "");
+  history.pushState(null, "", url);
   await loadPage(path);
   highlightTree();
+  if (anchor) scrollToAnchor(anchor);
 }
 
 async function loadPage(path) {
   const response = await fetch("/api/render?path=" + encodeURIComponent(path));
   if (!response.ok) {
     previewEl.textContent = await response.text();
+    outlineEl.innerHTML = "";
     return;
   }
   const data = await response.json();
   headings = data.headings;
-  document.title = data.title + " - markado";
+  document.title = data.title + " - mdiv";
   previewEl.innerHTML = data.html;
   renderOutline();
   await renderMermaid();
+}
+
+// Internal page links carry data-mdiv-* so navigation stays client side
+// without the frontend having to re-parse the href the server produced.
+previewEl.addEventListener("click", (event) => {
+  const link = event.target.closest('a[data-mdiv-kind="page"]');
+  if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+  event.preventDefault();
+  navigate(link.dataset.mdivPath, link.dataset.mdivAnchor);
+});
+
+function scrollToAnchor(anchor) {
+  const target = document.getElementById(anchor);
+  if (target) target.scrollIntoView();
 }
 
 function renderOutline() {
@@ -262,7 +303,7 @@ async function renderMermaid() {
   for (const [index, block] of [...blocks].entries()) {
     const container = document.createElement("div");
     container.className = "mermaid";
-    const result = await mermaid.render("markado-mermaid-" + index + "-" + Date.now(), block.textContent || "");
+    const result = await mermaid.render("mdiv-mermaid-" + index + "-" + Date.now(), block.textContent || "");
     container.innerHTML = result.svg;
     block.closest("pre").replaceWith(container);
   }
@@ -278,17 +319,14 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
 
-function escapeAttr(value) {
-  return escapeHtml(value);
-}
-
 window.addEventListener("popstate", () => {
   currentPath = new URLSearchParams(location.search).get("path");
   if (currentPath) loadPage(currentPath).then(highlightTree);
 });
 
-new EventSource("/api/events").addEventListener("tree_changed", () => loadTree());
-new EventSource("/api/events").addEventListener("file_changed", () => {
+const events = new EventSource("/api/events");
+events.addEventListener("tree_changed", () => loadTree());
+events.addEventListener("file_changed", () => {
   if (currentPath) loadPage(currentPath);
 });
 
