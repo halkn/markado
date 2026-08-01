@@ -28,6 +28,11 @@ jobs:
             exit 1
           fi
 
+      - name: Build the web bundle
+        run: |
+          bun run build:web
+          bun run build:embed
+
       - name: Build binaries
         run: |
           mkdir -p dist

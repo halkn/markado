@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mdiv</title>
+    <script>
+      // Inline so the first paint already has the stored theme; a flash of the
+      // wrong theme is otherwise unavoidable with a bundled entry point.
+      (() => {
+        const stored = localStorage.getItem("mdiv-theme");
+        const theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <script type="module" src="/app/main.tsx"></script>
+  </head>
+  <body>
+    <!-- React replaces this on mount, so a blank page means the shell rendered
+         nothing, while this text means the entry script never ran. -->
+    <div id="root"><p style="padding: 1rem; font: 14px system-ui">mdiv を起動しています…</p></div>
+  </body>
+</html>

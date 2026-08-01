@@ -5,10 +5,11 @@
 ## Commands
 
 ```sh
-bun run check   # check:version + typecheck + lint + format:check + test
-bun run test
-bun run build
+bun run check     # check:version + typecheck + lint + format:check + test
+bun run test      # server tests, then web tests (separate processes)
+bun run build     # build:web + build:embed + bun build
 bun run dev -- [flags] [path]
+bun run dev:web   # Vite dev server on 5173, proxying /api to 6275
 ```
 
 At minimum, get `bun run check` passing before you call a change done.
@@ -16,11 +17,13 @@ At minimum, get `bun run check` passing before you call a change done.
 `bun run` enumerates parent directories while looking for the project root, so it fails to start under a sandbox that denies reads above the project. Call the tools directly in that case:
 
 ```sh
-bun test
+bun test test/core test/flavors test/server
+bun test --preload ./test/setup/dom.ts test/web
 bun scripts/check-version.ts
 ./node_modules/.bin/tsc --noEmit -p tsconfig.json
+./node_modules/.bin/tsc --noEmit -p tsconfig.web.json
 ./node_modules/.bin/oxlint
-./node_modules/.bin/oxfmt --check src test
+./node_modules/.bin/oxfmt --check .
 ```
 
 ## Architecture
@@ -31,16 +34,22 @@ src/
   core/      the generic Markdown reader (flavor agnostic)
   flavors/   flavor contract, registry, plain, and ado/
   server/    routing, SSE hub, MIME
-  web/       browser assets as string literals (not yet React)
+  web/       React shell (Vite + Tailwind + shadcn/ui + TanStack Router)
+    app/       components/, hooks/, lib/, styles.css
+    bundle.ts  serves the built assets; generated/ is not committed
 ```
 
 ### Boundaries to hold
 
 - **Keep wiki-specific behavior out of `core/`.** Everything Azure DevOps Wiki does differently — `.order`, `Page.md` plus `Page/`, `[[_TOC_]]`, `::: mermaid`, root-absolute links — lives in `flavors/ado/`. A new dialect goes under `flavors/` too.
 - **Every flavor hook is optional** and falls back to the core default (`src/flavors/types.ts`). That the `plain` flavor works with no hooks at all is what proves the separation still holds.
-- **Only `toHref` may know the URL scheme** (`src/core/links.ts`). Renderers and flavors return a `LinkTarget`, and the HTML carries `data-mdiv-*`. This is what lets the frontend be replaced without touching either.
+- **`src/core/readUrl.ts` is the only definition of the page URL scheme**, and `toHref` (`src/core/links.ts`) is its only consumer on the server side. Renderers and flavors return a `LinkTarget`, and the HTML carries `data-mdiv-*`; the router imports the same module, so a server-rendered `href` and a client route cannot drift apart.
+- **React owns the shell, the server owns the Markdown HTML.** `DocumentView` injects `RenderResponse.html` as-is. Rendering concerns belong in `core/` or a flavor, not in a component.
+- **The frontend loads nothing from the network.** A local reader must work offline, so every dependency is bundled; Mermaid is imported dynamically (`src/web/app/lib/mermaid.ts`) so it becomes its own chunk instead of weighing down the entry. `scripts/embed-web.ts` fails the build if a static remote import reaches the output: Vite hoists inline module scripts in `index.html` into the entry chunk, and an unreachable host there stops the whole app from evaluating — a blank page, not a missing feature.
+- **The frontend ships inside the binary.** `vite build` writes `dist/web/`, `scripts/embed-web.ts` turns it into `src/web/generated/bundle.ts`, and `src/web/bundle.ts` imports that dynamically so `bun test` and `tsc` still work without a Vite build. Anything Vite emits must be UTF-8 text; binary assets have to be inlined as data URIs.
 - **Markdown is one pass: parse, assign heading ids, render** (`src/core/markdown.ts`). Building the token stream twice lets `[[_TOC_]]` anchors drift from the `id` attributes in the body.
 - **Write syntax extensions as markdown-it rules, not string substitution.** Substitution also rewrites the inside of fenced code blocks.
+- **The tree scan and the watcher must agree on what to skip** (`src/core/ignore.ts`). Watching `node_modules` starves the event loop for minutes: the server listens, but never answers a request, so the browser shows a blank page with nothing in the console.
 - **Path safety is two separate checks** (`src/core/path.ts`): call `resolveSafePath`, then check existence, then `assertRealPathWithinRoot`. That order is what makes "outside the root" a 400 and "simply missing" a 404.
 
 ## Development style
@@ -49,10 +58,15 @@ src/
 - Push statically checkable rules into oxlint / oxfmt / tsc rather than compensating in comments.
 - Comment only where the _why_ is non-obvious. Do not describe _what_ the code does.
 - A `PostToolUse` hook runs `oxfmt --write` on edited files (`.claude/settings.json`).
+- shadcn/ui components live in `src/web/app/components/ui/`. Add them with `bunx shadcn@latest add <name>`, then move them out of the `@/` directory the CLI creates. They expect shadcn's token names (`primary`, `accent`, `muted`, …), which `styles.css` maps onto the `--mdiv-*` palette; `accent` there means a hover surface, not the brand colour.
 
 ## Tests
 
 `test/` mirrors `src/`. Build a wiki in a temporary directory with `createWiki()` from `test/helpers/wiki.ts`.
+
+`test/web` runs in a separate `bun test` process with `--preload ./test/setup/dom.ts`. It has to: registering happy-dom globally replaces `Response`, and the asset route hands a `BunFile` to it. Do not move that preload into a shared `bunfig.toml`.
+
+Layout that depends on measured element sizes (pane collapse, resizing) cannot be asserted under happy-dom. Test the control and its state, and verify the behavior in a browser.
 
 The server tests are split into three layers. Check which one a new test belongs in.
 
@@ -67,3 +81,5 @@ The server tests are split into three layers. Check which one a new test belongs
 ## Release
 
 The version lives in both `package.json` and `src/version.ts`, and `bun run check:version` asserts they agree. Use `bun run version <x.y.z>` to update both.
+
+The release workflow builds the web bundle before compiling the binaries; a binary built without that step falls back to a placeholder page.

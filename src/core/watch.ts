@@ -1,6 +1,7 @@
 import { watch } from "chokidar";
 import { realpathSync } from "node:fs";
 import { isAbsolute, relative } from "node:path";
+import { isIgnoredSegment } from "./ignore.ts";
 import { isMarkdownPath } from "./path.ts";
 
 export type WikiChangeEvent = "tree_changed" | "file_changed";
@@ -67,7 +68,9 @@ export function shouldIgnore(relativePath: string): boolean {
   return relativePath
     .replaceAll("\\", "/")
     .split("/")
-    .some((part) => part.startsWith(".") && !WATCHED_DOT_ENTRIES.has(part));
+    .some(
+      (part) => isIgnoredSegment(part) || (part.startsWith(".") && !WATCHED_DOT_ENTRIES.has(part)),
+    );
 }
 
 export function classifyChange(event: string, path: string): WikiChangeEvent | null {

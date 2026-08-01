@@ -40,7 +40,7 @@ describe("flavor extension points", () => {
     };
     const html = renderMarkdown(flavor, "Home.md", "[a](special)\n[b](Other.md)\n").html;
     expect(html).toContain('href="#moved"');
-    expect(html).toContain('href="/?path=Other.md"');
+    expect(html).toContain('href="/read/Other.md"');
   });
 
   test("excludeFromTree hides entries the core would otherwise show", async () => {

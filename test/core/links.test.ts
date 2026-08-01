@@ -61,7 +61,7 @@ describe("link resolution", () => {
 
   test("renders hrefs only at the boundary", () => {
     expect(toHref({ kind: "page", path: "Guide/Next.md", anchor: "Part" })).toBe(
-      "/?path=Guide%2FNext.md#Part",
+      "/read/Guide/Next.md#Part",
     );
     expect(toHref({ kind: "asset", path: ".attachments/diagram.png" })).toBe(
       "/api/asset?path=.attachments%2Fdiagram.png",

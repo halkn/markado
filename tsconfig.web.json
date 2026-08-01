@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["bun-types"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/web/app/*"]
+    }
+  },
+  "include": [
+    "src/web/app/**/*.ts",
+    "src/web/app/**/*.tsx",
+    "test/web/**/*.ts",
+    "test/web/**/*.tsx"
+  ]
+}

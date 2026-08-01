@@ -3,6 +3,7 @@ import type { Dirent } from "node:fs";
 import { basename, join, relative } from "node:path";
 import type { DirEntry, EntryGroup, EntryGroupComparator, Flavor } from "../flavors/types.ts";
 import type { TreeNode, TreeResponse, WikiContext } from "../types.ts";
+import { isIgnoredSegment } from "./ignore.ts";
 import { isMarkdownPath, stripMarkdownExtension, toPosixPath } from "./path.ts";
 
 /** Guards against pathological nesting; deeper trees are truncated, not fatal. */
@@ -152,7 +153,7 @@ async function entryKind(dirent: Dirent, absolutePath: string): Promise<DirEntry
 }
 
 function isHiddenEntry(entry: DirEntry): boolean {
-  return entry.name.startsWith(".");
+  return entry.name.startsWith(".") || isIgnoredSegment(entry.name);
 }
 
 function collectFiles(node: TreeNode, files: string[]): void {

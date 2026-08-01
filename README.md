@@ -8,7 +8,15 @@ designed for trusted local documents.
 
 ```sh
 bun install
+bun run build:web        # build the React shell once
 bun run dev -- [flags] [path]
+```
+
+While working on the frontend, run the API server and the Vite dev server side by side:
+
+```sh
+bun run dev -- [path]    # API on http://localhost:6275
+bun run dev:web          # UI with hot reload on http://localhost:5173
 ```
 
 CLI:
@@ -48,13 +56,17 @@ default), `ado` is selected when the wiki root contains `.order` or `.attachment
 | Extension-less page links | Treated as assets    | Resolved to `.md` pages       |
 
 Dot-prefixed entries such as `.order` and `.attachments` are hidden from the tree in both flavors,
-but remain reachable as assets.
+but remain reachable as assets. `node_modules` is skipped entirely, by both the tree scan and the
+file watcher.
 
 ## Features
 
 Core:
 
-- Three-pane browser UI: tree, preview, and outline.
+- Three-pane React UI: file tree, document, and outline, each pane resizable and collapsible.
+- Pane widths, collapsed panes, and the theme are remembered across reloads.
+- The open page is part of the URL (`/read/docs/architecture.md#data-flow`), so reload, back,
+  forward, and bookmarks work. The URL never contains the workspace's absolute path.
 - Markdown rendering with raw HTML enabled for trusted local preview.
 - Outline extraction with stable, unique heading ids.
 - Client-side navigation for internal links, plus browser back and forward.
@@ -71,7 +83,8 @@ Azure DevOps Wiki compatibility (`ado` flavor):
 - Page folders such as `Guide.md` plus `Guide/` become clickable tree nodes with children.
 - `.attachments` is hidden from the tree but available to Markdown images and links.
 - `[[_TOC_]]` markers, ignored inside fenced code blocks.
-- `::: mermaid` blocks, rendered in the browser with Mermaid from CDN.
+- `::: mermaid` blocks, rendered in the browser. Mermaid ships inside the binary as its own chunk
+  and is loaded only for pages that contain a diagram, so it works offline.
 - Root-absolute, extension-less, and percent-encoded page links, including Japanese and
   space-containing page names.
 
@@ -82,8 +95,11 @@ Azure DevOps Wiki compatibility (`ado` flavor):
 - `GET /api/asset?path=<asset-path>`
 - `GET /api/events`
 
+Every other path serves the React shell: a built asset when one matches, otherwise `index.html`, so
+`/read/<page-path>` survives a reload.
+
 API paths are root-relative. Absolute paths and `..` traversal outside the wiki root are rejected
-with `400`; safe paths that do not exist return `404`.
+with `400`; safe paths that do not exist return `404`. Unknown paths under `/api/` return `404`.
 
 Rendered links carry `data-mdiv-kind`, `data-mdiv-path`, and `data-mdiv-anchor` alongside
 `href`, so a frontend can route internally without re-parsing URLs.
@@ -96,21 +112,30 @@ src/
   core/           generic reader: paths, tree scan, Markdown pipeline, links, watcher
   flavors/        flavor contract, registry, plain, and ado/
   server/         routing, SSE hub, MIME
-  web/            browser assets
+  web/
+    index.html    Vite entry point
+    app/          React shell: components, hooks, lib, design tokens
+    bundle.ts     serves the built assets, embedded at build time
 ```
 
 Flavors implement the optional hooks in `src/flavors/types.ts`; omitting a hook falls back to the
 core behavior.
 
+The frontend is built by Vite and then turned into a TypeScript module by `scripts/embed-web.ts`,
+so `bun build --compile` produces a binary that carries its own UI. `src/core/readUrl.ts` holds the
+one definition of the page URL scheme, shared by the server-rendered links and the router.
+
 ## Development
 
 ```sh
 bun run test
+bun run test:web
 bun run typecheck
 bun run check:version
 bun run lint
 bun run format:check
 bun run check
+bun run build
 ```
 
 ## Release

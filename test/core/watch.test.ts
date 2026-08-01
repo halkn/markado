@@ -21,6 +21,13 @@ describe("watch path filtering", () => {
   test("keeps the root itself", () => {
     expect(shouldIgnore("")).toBe(false);
   });
+
+  // Walking node_modules starves the event loop long enough that the server
+  // listens without ever answering a request.
+  test("ignores dependency directories", () => {
+    expect(shouldIgnore("node_modules/react/README.md")).toBe(true);
+    expect(shouldIgnore("docs/node_modules/x")).toBe(true);
+  });
 });
 
 describe("watch base resolution", () => {

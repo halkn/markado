@@ -15,10 +15,6 @@ export function jsonResponse(value: unknown): Response {
   });
 }
 
-export function textResponse(value: string, mimeType: string): Response {
-  return new Response(value, { headers: { "Content-Type": mimeType } });
-}
-
 export function requiredPathParam(url: URL): string {
   const value = url.searchParams.get("path");
   if (!value) {
