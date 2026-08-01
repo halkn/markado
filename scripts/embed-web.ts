@@ -27,8 +27,59 @@ if (files.length === 0) {
  */
 const REMOTE_STATIC_IMPORT = /\bfrom\s*["']https?:/;
 
+/**
+ * Every page pays for the entry chunk and whatever it statically imports before
+ * it renders anything, so a feature as large as Mermaid (3MB) has to stay
+ * behind `import()`. It has leaked into that closure once already: grouping
+ * Mermaid into a single chunk moved Vite's preload helper in there, and the
+ * entry needs the helper, so it imported the whole of Mermaid to get it. The
+ * budget is well above the shell (~450kB) and well below anything that pulls a
+ * diagram or maths renderer along.
+ */
+const ENTRY_BUDGET_BYTES = 1_500_000;
+const STATIC_IMPORT = /(?:\bfrom|\bimport)\s*["']([^"']+)["']/g;
+const HTML_ENTRY = /<script[^>]*\btype="module"[^>]*\bsrc="([^"]+)"/;
+
 const decoder = new TextDecoder("utf-8", { fatal: true });
-const entries = await Promise.all(
+const assets = new Map<string, { content: string; size: number }>();
+
+function assertEntryWithinBudget(): void {
+  const html = assets.get("/index.html");
+  const entry = html?.content.match(HTML_ENTRY)?.[1];
+  if (!entry) {
+    console.error("No module entry script in /index.html; the Vite output looks wrong.");
+    process.exit(1);
+  }
+
+  const closure = new Set<string>();
+  const queue = [entry];
+  let total = 0;
+
+  for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
+    const asset = assets.get(key);
+    if (!asset || closure.has(key)) {
+      continue;
+    }
+    closure.add(key);
+    total += asset.size;
+
+    for (const [, specifier] of asset.content.matchAll(STATIC_IMPORT)) {
+      if (specifier.startsWith(".")) {
+        queue.push(new URL(specifier, `file://${key}`).pathname);
+      }
+    }
+  }
+
+  if (total > ENTRY_BUDGET_BYTES) {
+    const chunks = [...closure].toSorted().join("\n  ");
+    console.error(
+      `The entry loads ${total} bytes statically, over the ${ENTRY_BUDGET_BYTES} budget:\n  ${chunks}`,
+    );
+    process.exit(1);
+  }
+}
+
+await Promise.all(
   files.map(async (file) => {
     const key = `/${relative(WEB_DIST, file).split(sep).join("/")}`;
     const bytes = await Bun.file(file).bytes();
@@ -39,7 +90,7 @@ const entries = await Promise.all(
         console.error(`${key} statically imports a remote module; use a dynamic import.`);
         process.exit(1);
       }
-      return `  ${JSON.stringify(key)}: ${JSON.stringify(content)},`;
+      assets.set(key, { content, size: bytes.byteLength });
     } catch {
       // The bundle is a string map, so a binary asset would be silently
       // corrupted. Vite is configured to inline assets as data URIs instead.
@@ -48,6 +99,12 @@ const entries = await Promise.all(
     }
   }),
 );
+
+assertEntryWithinBudget();
+
+const entries = [...assets]
+  .toSorted(([a], [b]) => (a < b ? -1 : 1))
+  .map(([key, { content }]) => `  ${JSON.stringify(key)}: ${JSON.stringify(content)},`);
 
 await Bun.write(
   OUTPUT,

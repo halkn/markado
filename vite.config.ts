@@ -24,18 +24,6 @@ export default defineConfig({
     emptyOutDir: true,
     // Everything is served from localhost, so preloading buys nothing.
     modulePreload: false,
-    rolldownOptions: {
-      output: {
-        advancedChunks: {
-          groups: [
-            // Mermaid reaches its diagram implementations through `import()`.
-            // Split across chunks, those imports never settle and `render()`
-            // hangs; in one chunk they resolve against code already loaded.
-            { name: "mermaid", test: /node_modules[\\/](?:mermaid|@?mermaid-js)[\\/]/ },
-          ],
-        },
-      },
-    },
     // One stylesheet, loaded by the shell. Per-chunk CSS would make Mermaid's
     // per-diagram `import()` calls go through Vite's preload helper, which
     // rejects the whole import when a stylesheet fails to preload.
