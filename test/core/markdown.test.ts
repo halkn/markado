@@ -65,12 +65,12 @@ describe("references", () => {
       "[Next](Next.md#Part)\n![Diagram](../.attachments/diagram.png)\n[External](https://example.com)\n",
     ).html;
 
-    expect(html).toContain('href="/?path=Guide%2FNext.md#Part"');
+    expect(html).toContain('href="/read/Guide/Next.md#Part"');
     expect(html).toContain('data-mdiv-kind="page"');
     expect(html).toContain('data-mdiv-path="Guide/Next.md"');
     expect(html).toContain('src="/api/asset?path=.attachments%2Fdiagram.png"');
     expect(html).toContain('href="https://example.com"');
-    expect(html).not.toContain('href="/?path=https');
+    expect(html).not.toContain('href="/read/https');
   });
 
   test("leaves in-page anchors as anchors", () => {

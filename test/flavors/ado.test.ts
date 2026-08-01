@@ -119,14 +119,12 @@ describe("ADO Markdown syntax", () => {
 describe("ADO links", () => {
   test("resolves root-absolute page links", () => {
     const html = render("Guide/Intro.md", "[Install](/Guide/Install)\n").html;
-    expect(html).toContain('href="/?path=Guide%2FInstall.md"');
+    expect(html).toContain('href="/read/Guide/Install.md"');
     expect(html).toContain('data-mdiv-path="Guide/Install.md"');
   });
 
   test("resolves extension-less relative page links", () => {
-    expect(render("Guide/Intro.md", "[Next](Next)\n").html).toContain(
-      'href="/?path=Guide%2FNext.md"',
-    );
+    expect(render("Guide/Intro.md", "[Next](Next)\n").html).toContain('href="/read/Guide/Next.md"');
   });
 
   test("resolves root-absolute attachment links", () => {
@@ -137,7 +135,7 @@ describe("ADO links", () => {
 
   test("decodes percent-encoded page names", () => {
     expect(render("Home.md", "[GS](/Getting%20Started)\n").html).toContain(
-      'href="/?path=Getting%20Started.md"',
+      'href="/read/Getting%20Started.md"',
     );
     expect(render("Home.md", "[G](/%E3%82%AC%E3%82%A4%E3%83%89)\n").html).toContain(
       'data-mdiv-path="ガイド.md"',
@@ -149,7 +147,7 @@ describe("ADO links", () => {
       "Guide/Intro.md",
       "[Next](Next.md#Part)\n[Ext](https://example.com)\n",
     ).html;
-    expect(html).toContain('href="/?path=Guide%2FNext.md#Part"');
+    expect(html).toContain('href="/read/Guide/Next.md#Part"');
     expect(html).toContain('href="https://example.com"');
   });
 });

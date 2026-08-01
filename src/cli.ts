@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { spawn } from "node:child_process";
 import { resolveWikiContext } from "./core/context.ts";
+import { toReadUrl } from "./core/readUrl.ts";
 import { FLAVOR_SELECTIONS, isFlavorSelection } from "./flavors/registry.ts";
 import { startMdivServer } from "./server/index.ts";
 import { VERSION } from "./version.ts";
@@ -38,7 +39,7 @@ if (!isFlavorSelection(options.flavor)) {
 const context = await resolveWikiContext(targetPath, options.flavor);
 const server = await startMdivServer(context, options.bind, port);
 const previewUrl = context.initialPagePath
-  ? `${server.url}?path=${encodeURIComponent(context.initialPagePath)}`
+  ? new URL(toReadUrl(context.initialPagePath), server.url).href
   : server.url;
 
 console.log(`mdiv serving ${context.rootDir} (${context.flavor.name})`);

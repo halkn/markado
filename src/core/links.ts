@@ -4,6 +4,7 @@ import {
   normalizeRootRelativePath,
   resolveMarkdownRelativePath,
 } from "./path.ts";
+import { toReadUrl } from "./readUrl.ts";
 
 /**
  * Resolved meaning of a Markdown reference, independent of any URL scheme.
@@ -51,7 +52,7 @@ export function resolveLinkTarget(
 export function toHref(target: LinkTarget): string {
   switch (target.kind) {
     case "page":
-      return withAnchor(`/?path=${encodeURIComponent(target.path)}`, target.anchor);
+      return toReadUrl(target.path, target.anchor);
     case "asset":
       return withAnchor(`/api/asset?path=${encodeURIComponent(target.path)}`, target.anchor);
     case "anchor":
