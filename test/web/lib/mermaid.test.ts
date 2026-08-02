@@ -83,6 +83,18 @@ describe("renderMermaidHtml", () => {
     expect(count(html, "code.language-mermaid")).toBe(1);
   });
 
+  // Diagrams come from a repository nobody vouched for, so the setting that
+  // decides how much of one reaches the DOM cannot be left to a default.
+  test("pins the security level rather than inheriting it", async () => {
+    const mermaid = fakeMermaid();
+
+    await renderMermaidHtml(page, () => Promise.resolve(mermaid));
+
+    expect(mermaid.initialize).toHaveBeenCalledWith(
+      expect.objectContaining({ securityLevel: "strict", startOnLoad: false }),
+    );
+  });
+
   test("does not load Mermaid for a page without diagrams", async () => {
     const load = mock(() => Promise.resolve(fakeMermaid()));
 

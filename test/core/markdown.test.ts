@@ -31,8 +31,55 @@ describe("GFM baseline", () => {
     );
   });
 
-  test("keeps raw HTML for trusted local documents", () => {
+  test("keeps raw HTML that the allowlist covers", () => {
     expect(render("Home.md", "<mark>ok</mark>\n").html).toContain("<mark>ok</mark>");
+    expect(render("Home.md", '<div class="note">\n\n# Inside\n\n</div>\n').html).toContain(
+      '<div class="note">',
+    );
+  });
+});
+
+describe("untrusted raw HTML", () => {
+  test("removes a script block", () => {
+    const html = render("Home.md", "<script>alert(1)</script>\n\ntext\n").html;
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("alert(1)");
+  });
+
+  test("removes an inline script without leaving executable markup", () => {
+    const html = render("Home.md", "before <script>alert(1)</script> after\n").html;
+    expect(html).not.toContain("<script");
+    expect(html).toContain("alert(1)");
+  });
+
+  test("removes event handler attributes", () => {
+    const html = render("Home.md", '<img src="a.png" onerror="alert(1)">\n').html;
+    expect(html).toContain('src="a.png"');
+    expect(html).not.toContain("onerror");
+  });
+
+  test("removes iframes and style blocks", () => {
+    expect(render("Home.md", '<iframe src="https://evil.example"></iframe>\n').html).not.toContain(
+      "<iframe",
+    );
+    expect(render("Home.md", "<style>body{display:none}</style>\n").html).not.toContain("<style");
+  });
+
+  test("removes a javascript href from raw HTML", () => {
+    const html = render("Home.md", '<a href="javascript:alert(1)">x</a>\n').html;
+    expect(html).not.toContain("javascript:");
+  });
+
+  test("never builds an anchor from a javascript: Markdown link", () => {
+    // markdown-it refuses the link while parsing, so the source stays text.
+    const html = render("Home.md", "[x](javascript:alert(1))\n").html;
+    expect(html).not.toContain("<a ");
+    expect(html).not.toContain("href=");
+  });
+
+  test("leaves fenced code untouched", () => {
+    const html = render("Home.md", "```html\n<script>alert(1)</script>\n```\n").html;
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 });
 

@@ -1,9 +1,33 @@
+export type MermaidConfig = {
+  startOnLoad: boolean;
+  securityLevel: string;
+  theme: string;
+};
+
 export type Mermaid = {
-  initialize: (config: { startOnLoad: boolean; theme: string }) => void;
+  initialize: (config: MermaidConfig) => void;
   render: (id: string, source: string) => Promise<{ svg: string }>;
 };
 
 export type MermaidLoader = () => Promise<Mermaid | null>;
+
+/**
+ * The only place Mermaid is configured. Diagrams come from whatever repository
+ * the reader opened, so `securityLevel` is pinned rather than inherited from
+ * whatever the installed version defaults to: `strict` runs labels through
+ * Mermaid's own DOMPurify and keeps HTML labels off.
+ *
+ * Nothing here is taken from the document. A `%%{init: …}%%` directive inside a
+ * diagram cannot reach `securityLevel` — Mermaid keeps it in the list of keys a
+ * directive may not touch — so there is no path from Markdown to running code.
+ */
+export function mermaidConfig(): MermaidConfig {
+  return {
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default",
+  };
+}
 
 let loading: Promise<Mermaid | null> | null = null;
 
@@ -50,10 +74,7 @@ export async function renderMermaidHtml(
     return html;
   }
 
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default",
-  });
+  mermaid.initialize(mermaidConfig());
 
   for (const [index, block] of blocks.entries()) {
     const pre = block.closest("pre");

@@ -6,6 +6,7 @@ import type { Flavor } from "../flavors/types.ts";
 import type { Heading, RenderResponse } from "../types.ts";
 import { linkDataAttributes, resolveLinkTarget, toHref } from "./links.ts";
 import { stripMarkdownExtension } from "./path.ts";
+import { sanitizeRawHtml } from "./sanitize.ts";
 
 /**
  * Render-time state shared with flavor plugins. `headings` is filled in before
@@ -37,6 +38,7 @@ export function createRenderer(flavor: Flavor): MarkdownIt {
   }).use(taskLists, { enabled: false });
 
   installLinkRewriter(renderer, flavor);
+  installHtmlSanitizer(renderer);
   for (const plugin of flavor.markdownItPlugins ?? []) {
     renderer.use(plugin);
   }
@@ -105,6 +107,18 @@ export function slugifyHeading(text: string, used = new Map<string, number>()): 
 
 const renderToken: RenderRule = (tokens, index, options, _env, self) =>
   self.renderToken(tokens, index, options);
+
+/**
+ * `html: true` stays on, but the document decides nothing on its own: raw HTML
+ * reaches the browser only through the allowlist in `sanitize.ts`. Filtering the
+ * tokens rather than the rendered string keeps the renderer's own markup — the
+ * `data-mdiv-*` attributes, `[[_TOC_]]`, the Mermaid fence — out of the scan.
+ */
+function installHtmlSanitizer(renderer: MarkdownIt): void {
+  const sanitize: RenderRule = (tokens, index) => sanitizeRawHtml(tokens[index].content);
+  renderer.renderer.rules.html_block = sanitize;
+  renderer.renderer.rules.html_inline = sanitize;
+}
 
 function installLinkRewriter(renderer: MarkdownIt, flavor: Flavor): void {
   const defaultLinkOpen = renderer.renderer.rules.link_open ?? renderToken;

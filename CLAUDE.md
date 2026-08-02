@@ -51,7 +51,17 @@ src/
 - **Markdown is one pass: parse, assign heading ids, render** (`src/core/markdown.ts`). Building the token stream twice lets `[[_TOC_]]` anchors drift from the `id` attributes in the body.
 - **Write syntax extensions as markdown-it rules, not string substitution.** Substitution also rewrites the inside of fenced code blocks.
 - **The tree scan and the watcher must agree on what to skip** (`src/core/ignore.ts`). Watching `node_modules` starves the event loop for minutes: the server listens, but never answers a request, so the browser shows a blank page with nothing in the console.
-- **Path safety is two separate checks** (`src/core/path.ts`): call `resolveSafePath`, then check existence, then `assertRealPathWithinRoot`. That order is what makes "outside the root" a 400 and "simply missing" a 404.
+- **Path safety is two separate checks** (`src/core/path.ts`): `assertSafeRelativePath` runs the lexical one and then the symlink one, and only after both does a route ask whether the file exists. The lexical check tolerates missing paths, so "outside the root" is still a 400 and "simply missing" still a 404 — but a symlink out of the root now answers alike either way, instead of letting the 400/404 split reveal what is out there.
+
+### The wiki is untrusted input
+
+mdiv is pointed at repositories nobody vouched for, so a document may be actively hostile. These are load-bearing:
+
+- **Raw HTML goes through the allowlist in `src/core/sanitize.ts`, and nothing else.** It is installed as the `html_block` / `html_inline` renderer rules, so it filters the document's markup without touching the renderer's own. Every surviving tag is **rebuilt** from its parsed name and attributes: passing the original text through would let whatever the scanner failed to parse decide what the browser sees, and re-escaping on the way out is also what makes `java&#115;cript:` inert. Widening the allowlist is a security decision — `<svg>` and `<style>` are absent on purpose, and `<input>` is accepted only as a task-list checkbox.
+- **`src/server/headers.ts` is the only definition of the response headers**, CSP included. A route that builds its own headers is a route that ships without a policy. The shell's inline theme script is covered by a hash read back out of the HTML being served, so it follows the Vite build; `script-src` must never gain `'unsafe-inline'`. `style-src` cannot be tightened the same way — Mermaid puts a `<style>` inside every SVG it generates, and Radix and react-resizable-panels position themselves with inline `style`.
+- **`mermaidConfig()` (`src/web/app/lib/mermaid.ts`) is the only place Mermaid is configured**, and `securityLevel` is pinned rather than inherited. Nothing from a document reaches it.
+- **The watcher does not follow symlinks** (`src/core/watch.ts`). It would watch directories the server refuses to serve, and a link back to an ancestor walks until the kernel answers ELOOP — which used to arrive as an unhandled error and kill the process seconds after it started listening.
+- **Responses never quote a filesystem path.** `errorResponse` (`src/server/http.ts`) answers 500 with a fixed string and logs the detail; Node puts the absolute path in every fs error message.
 
 ## Development style
 
