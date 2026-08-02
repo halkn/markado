@@ -168,6 +168,16 @@ body {
   text-underline-offset: 0.2em;
 }
 
+/* A link that leaves the wiki should say so before it is clicked. */
+.markdown-body a[data-mdiv-kind="external"]::after {
+  content: "↗";
+  display: inline-block;
+  margin-left: 0.15em;
+  font-size: 0.85em;
+  text-decoration: none;
+  vertical-align: text-top;
+}
+
 .markdown-body blockquote {
   padding-left: 1em;
   border-left: 2px solid var(--mdiv-border);

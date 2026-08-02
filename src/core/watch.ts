@@ -25,6 +25,11 @@ export function watchWiki(
   const bases = watchBases(rootDir);
   const watcher = watch(rootDir, {
     ignoreInitial: true,
+    // The wiki may be a repository nobody vouched for. Following its symlinks
+    // would watch directories the server refuses to serve, and a link back to
+    // an ancestor walks until the kernel gives up with ELOOP — which arrives
+    // here as an unhandled error and takes the whole process down at startup.
+    followSymlinks: false,
     ignored: (path) => shouldIgnore(toWatchRelativePath(bases, path)),
   });
 
@@ -33,6 +38,11 @@ export function watchWiki(
     if (change) {
       onChange(change);
     }
+  });
+
+  // Losing file watching degrades mdiv to manual reloads; it must not end it.
+  watcher.on("error", (error) => {
+    console.error("mdiv: file watcher error", error);
   });
 
   return { close: () => watcher.close() };

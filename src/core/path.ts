@@ -34,15 +34,49 @@ export function isLocalReference(value: string): boolean {
   return !/^[a-z][a-z0-9+.-]*:/i.test(value) && !value.startsWith("//") && !value.startsWith("#");
 }
 
+/** Matches a Windows drive letter prefix, which is absolute only on Windows. */
+const DRIVE_LETTER = /^[a-z]:/i;
+
+/** Separators that survived one round of URL decoding, i.e. were encoded twice. */
+const ENCODED_SEPARATOR = /%2f|%5c|%2e%2e/i;
+
+// oxlint-disable-next-line no-control-regex
+const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/;
+
+/**
+ * Everything a wiki path may not be, spelled out rather than left to
+ * `node:path`. Those helpers answer per platform: on Linux `C:\secret` is not
+ * absolute and `a\..\..\x` is one long filename, so a Windows-shaped traversal
+ * would pass a Linux-only test suite and still be a traversal on Windows.
+ */
+function assertRelativePosixPath(relativePath: string): void {
+  if (!relativePath) {
+    throw new PathSafetyError("Path must be relative to the wiki root");
+  }
+  if (CONTROL_CHARACTER.test(relativePath)) {
+    throw new PathSafetyError("Path contains control characters");
+  }
+  if (ENCODED_SEPARATOR.test(relativePath)) {
+    throw new PathSafetyError("Path contains an encoded separator");
+  }
+  if (relativePath.includes("\\")) {
+    throw new PathSafetyError("Path must use / as a separator");
+  }
+  if (relativePath.startsWith("/") || DRIVE_LETTER.test(relativePath) || isAbsolute(relativePath)) {
+    throw new PathSafetyError("Path must be relative to the wiki root");
+  }
+  if (relativePath.split("/").includes("..")) {
+    throw new PathSafetyError("Path escapes the wiki root");
+  }
+}
+
 /**
  * Lexical containment check. Never touches the filesystem, so it can run before
  * an existence check and lets callers distinguish "escapes the root" (400) from
  * "does not exist" (404).
  */
 export function resolveSafePath(rootDir: string, relativePath: string): string {
-  if (!relativePath || isAbsolute(relativePath)) {
-    throw new PathSafetyError("Path must be relative to the wiki root");
-  }
+  assertRelativePosixPath(relativePath);
 
   const normalizedRelative = normalize(relativePath);
   if (normalizedRelative === ".." || normalizedRelative.startsWith(`..${sep}`)) {

@@ -5,6 +5,7 @@ import {
   resolveMarkdownRelativePath,
 } from "./path.ts";
 import { toReadUrl } from "./readUrl.ts";
+import { safeUrl } from "./sanitize.ts";
 
 /**
  * Resolved meaning of a Markdown reference, independent of any URL scheme.
@@ -58,13 +59,17 @@ export function toHref(target: LinkTarget): string {
     case "anchor":
       return `#${target.id}`;
     case "external":
-      return target.href;
+      // markdown-it's own `validateLink` already refuses `javascript:` while
+      // parsing, but the renderer rule rewrites the attribute afterwards, so a
+      // flavor's `resolveLink` would otherwise be trusted with the result.
+      return safeUrl(target.href) ?? "";
   }
 }
 
 /**
  * Data attributes let the frontend intercept navigation without re-parsing the
- * href it was given.
+ * href it was given. External links get the marker too — they are the ones the
+ * reader has to be able to tell apart — plus the hardening a new tab needs.
  */
 export function linkDataAttributes(target: LinkTarget): Record<string, string> {
   switch (target.kind) {
@@ -79,7 +84,11 @@ export function linkDataAttributes(target: LinkTarget): Record<string, string> {
     case "anchor":
       return { "data-mdiv-kind": "anchor", "data-mdiv-anchor": target.id };
     case "external":
-      return {};
+      return {
+        "data-mdiv-kind": "external",
+        target: "_blank",
+        rel: "noopener noreferrer",
+      };
   }
 }
 

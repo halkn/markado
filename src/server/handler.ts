@@ -1,28 +1,37 @@
-import { PathSafetyError } from "../core/path.ts";
 import { scanWiki } from "../core/tree.ts";
 import type { WikiContext } from "../types.ts";
 import { indexHtml, webAsset } from "../web/bundle.ts";
-import { HttpError, jsonResponse } from "./http.ts";
+import { securityHeaders, shellCsp } from "./headers.ts";
+import { errorResponse, jsonResponse, textResponse } from "./http.ts";
 import { contentType } from "./mime.ts";
+import { assertAllowedRequest } from "./origin.ts";
 import { assetRoute } from "./routes/asset.ts";
 import { renderRoute } from "./routes/render.ts";
+import { DEFAULT_SECURITY, type SecurityOptions } from "./security.ts";
 import { createSseHub, type SseHub } from "./sse.ts";
 
 /** Where Vite emits hashed bundles; see `build.assetsDir` in `vite.config.ts`. */
 const ASSET_PREFIX = "/assets";
+
+const INDEX_PATH = "/index.html";
 
 export type MdivApp = {
   fetch: (request: Request) => Promise<Response>;
   hub: SseHub;
 };
 
-export function createApp(context: WikiContext): MdivApp {
+export function createApp(
+  context: WikiContext,
+  security: SecurityOptions = DEFAULT_SECURITY,
+): MdivApp {
   const hub = createSseHub();
 
   const fetch = async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
 
     try {
+      assertAllowedRequest(request, url, security);
+
       switch (url.pathname) {
         case "/api/tree":
           return jsonResponse(await scanWiki(context));
@@ -35,10 +44,10 @@ export function createApp(context: WikiContext): MdivApp {
       }
 
       if (url.pathname.startsWith("/api/")) {
-        return new Response("Not found", { status: 404 });
+        return textResponse("Not found", 404);
       }
 
-      return await shellResponse(url.pathname);
+      return await shellResponse(url.pathname, security);
     } catch (error) {
       return errorResponse(error);
     }
@@ -49,8 +58,9 @@ export function createApp(context: WikiContext): MdivApp {
 
 export function createRequestHandler(
   context: WikiContext,
+  security?: SecurityOptions,
 ): (request: Request) => Promise<Response> {
-  return createApp(context).fetch;
+  return createApp(context, security).fetch;
 }
 
 /**
@@ -62,39 +72,32 @@ export function createRequestHandler(
  * returning the shell would answer a module request with HTML, which the
  * browser rejects without rendering anything.
  */
-async function shellResponse(pathname: string): Promise<Response> {
-  const asset = await webAsset(pathname);
+async function shellResponse(pathname: string, security: SecurityOptions): Promise<Response> {
+  // `/index.html` is the shell under another name; letting it take the asset
+  // branch would cache the document that names the hashed bundles forever.
+  const asset = pathname === INDEX_PATH ? null : await webAsset(pathname);
   if (asset !== null) {
     const mimeType = contentType(pathname);
     return new Response(asset, {
       headers: {
         "Content-Type": mimeType.includes("charset") ? mimeType : `${mimeType}; charset=utf-8`,
         "Cache-Control": "public, max-age=31536000, immutable",
+        ...securityHeaders(shellCsp("", security)),
       },
     });
   }
 
   if (pathname.startsWith(`${ASSET_PREFIX}/`)) {
-    return new Response("Not found", { status: 404 });
+    return textResponse("Not found", 404);
   }
 
-  return new Response(await indexHtml(), {
+  const html = await indexHtml();
+  return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       // The shell names hashed bundles, so a cached copy outlives its assets.
       "Cache-Control": "no-store",
+      ...securityHeaders(shellCsp(html, security)),
     },
-  });
-}
-
-function errorResponse(error: unknown): Response {
-  if (error instanceof HttpError) {
-    return new Response(error.message, { status: error.status });
-  }
-  if (error instanceof PathSafetyError) {
-    return new Response(error.message, { status: 400 });
-  }
-  return new Response(error instanceof Error ? error.message : "Internal server error", {
-    status: 500,
   });
 }

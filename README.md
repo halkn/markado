@@ -28,8 +28,10 @@ mdiv [flags] [path]
 Flags:
 
 - `--port <number>`: server port. Default: `6275`.
-- `--bind <address>`: bind address. Default: `localhost`.
+- `--bind <address>`: bind address. Default: `127.0.0.1`.
 - `--flavor <name>`: `auto`, `plain`, or `ado`. Default: `auto`.
+- `--allow-remote-access`: required to bind to anything but loopback.
+- `--allow-remote-images`: let documents load images from the network.
 - `--no-open`: do not open a browser.
 - `--version`: print the version and exit.
 
@@ -103,6 +105,30 @@ with `400`; safe paths that do not exist return `404`. Unknown paths under `/api
 
 Rendered links carry `data-mdiv-kind`, `data-mdiv-path`, and `data-mdiv-anchor` alongside
 `href`, so a frontend can route internally without re-parsing URLs.
+
+## Security
+
+mdiv assumes the Markdown it is pointed at came from a repository nobody vouched for.
+
+- **Local by default.** The server binds to `127.0.0.1`. Any other address needs
+  `--allow-remote-access`, and prints a warning. On a loopback binding only loopback `Host` headers
+  are answered, so a name that resolves to `127.0.0.1` cannot reach the wiki; cross-origin requests
+  and anything other than `GET`/`HEAD` are refused.
+- **Raw HTML is filtered, not trusted.** `src/core/sanitize.ts` rebuilds every surviving tag from an
+  allowlist of elements and attributes. Scripts, styles, iframes, embedded SVG, event handlers, and
+  `javascript:` / `data:text/html` URLs never reach the browser. `data:` images are limited to
+  raster formats.
+- **A Content Security Policy backs that up.** The shell allows scripts only from its own origin
+  (the theme bootstrap runs under a hash, not `'unsafe-inline'`), forbids objects, frames, and
+  framing, and blocks remote images unless `--allow-remote-images` is passed. API responses carry
+  `default-src 'none'`, and assets are additionally `sandbox`ed so a wiki-local `.svg` or `.html`
+  cannot run as a same-origin document.
+- **Paths cannot leave the root.** Absolute paths, `..`, backslashes, Windows drive and UNC forms,
+  control characters, and separators that survived one round of URL decoding are all rejected with
+  `400`. Containment is re-checked against the resolved real path, so a symlink out of the root is
+  refused whether or not its target exists. Responses never contain a filesystem path.
+- **Mermaid runs with `securityLevel: "strict"`**, pinned in one place, and a diagram cannot
+  override it.
 
 ## Architecture
 

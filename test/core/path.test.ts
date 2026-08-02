@@ -40,6 +40,34 @@ describe("path safety", () => {
     );
   });
 
+  test("rejects Windows path shapes on every platform", async () => {
+    const root = createWiki({});
+    // node:path answers these per platform, so a Linux-only run would otherwise
+    // wave through what is a traversal once the same input reaches Windows.
+    await expect(assertSafeRelativePath(root, "C:\\secret.md")).rejects.toThrow(PathSafetyError);
+    await expect(assertSafeRelativePath(root, "\\\\server\\share\\secret.md")).rejects.toThrow(
+      PathSafetyError,
+    );
+    await expect(assertSafeRelativePath(root, "Guide\\..\\..\\secret.md")).rejects.toThrow(
+      PathSafetyError,
+    );
+  });
+
+  test("rejects separators that survived one round of decoding", async () => {
+    const root = createWiki({});
+    await expect(assertSafeRelativePath(root, "a%2F..%2F..%2Fsecret.md")).rejects.toThrow(
+      PathSafetyError,
+    );
+    await expect(assertSafeRelativePath(root, "%2e%2e/secret.md")).rejects.toThrow(PathSafetyError);
+  });
+
+  test("rejects control characters", async () => {
+    const root = createWiki({});
+    await expect(assertSafeRelativePath(root, "Home.md\u0000.png")).rejects.toThrow(
+      PathSafetyError,
+    );
+  });
+
   test("rejects symlink escapes outside the wiki root", async () => {
     const root = mkdtempSync(join(tmpdir(), "mdiv-root-"));
     const outside = mkdtempSync(join(tmpdir(), "mdiv-outside-"));
@@ -47,6 +75,11 @@ describe("path safety", () => {
     symlinkSync(outside, join(root, "linked"));
 
     await expect(assertSafeRelativePath(root, "linked/secret.md")).rejects.toThrow(
+      "Path escapes the wiki root",
+    );
+    // A missing target behind the same link must not answer differently, or the
+    // 400/404 split becomes an existence oracle for files outside the root.
+    await expect(assertSafeRelativePath(root, "linked/absent.md")).rejects.toThrow(
       "Path escapes the wiki root",
     );
   });

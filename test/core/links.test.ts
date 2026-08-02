@@ -76,6 +76,19 @@ describe("link resolution", () => {
       "data-mdiv-path": "Guide/Next.md",
       "data-mdiv-anchor": "Part",
     });
-    expect(linkDataAttributes({ kind: "external", href: "https://example.com" })).toEqual({});
+  });
+
+  test("marks external targets and hardens the tab they open", () => {
+    expect(linkDataAttributes({ kind: "external", href: "https://example.com" })).toEqual({
+      "data-mdiv-kind": "external",
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+  });
+
+  test("refuses to render a dangerous external href", () => {
+    expect(toHref({ kind: "external", href: "javascript:alert(1)" })).toBe("");
+    expect(toHref({ kind: "external", href: "//evil.example/x" })).toBe("");
+    expect(toHref({ kind: "external", href: "mailto:a@example.com" })).toBe("mailto:a@example.com");
   });
 });

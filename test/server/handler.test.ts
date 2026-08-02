@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createApp } from "../../src/server/handler.ts";
+import { errorResponse } from "../../src/server/http.ts";
 import { adoFlavor } from "../../src/flavors/ado/index.ts";
 import type { RenderResponse, TreeResponse } from "../../src/types.ts";
 import { createWiki, wikiContext } from "../helpers/wiki.ts";
@@ -74,6 +78,128 @@ describe("HTTP API", () => {
     test("answers 404 for unknown API routes", async () => {
       const { app } = appFor({ "Home.md": "# Home\n" });
       expect((await app.fetch(new Request("http://localhost/api/nope"))).status).toBe(404);
+    });
+
+    test("rejects traversal on the render route too", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n" });
+      expect(
+        (await app.fetch(new Request("http://localhost/api/render?path=..%2Fsecret.md"))).status,
+      ).toBe(400);
+    });
+
+    test("answers 400 for a symlink out of the root, present or not", async () => {
+      const root = createWiki({ "Home.md": "# Home\n" });
+      const outside = mkdtempSync(join(tmpdir(), "mdiv-outside-"));
+      writeFileSync(join(outside, "secret.txt"), "secret");
+      symlinkSync(outside, join(root, "linked"));
+      const app = createApp(wikiContext(root, adoFlavor));
+
+      // Both have to answer alike: a 404 for the missing one would confirm that
+      // the other exists, outside the root, without ever serving it.
+      const statuses = await Promise.all(
+        ["linked%2Fsecret.txt", "linked%2Fabsent.txt"].map(async (path) => {
+          const response = await app.fetch(new Request(`http://localhost/api/asset?path=${path}`));
+          return response.status;
+        }),
+      );
+      expect(statuses).toEqual([400, 400]);
+    });
+
+    test("keeps filesystem paths out of an unexpected failure", async () => {
+      // Node quotes the absolute path it failed on in every fs error, and those
+      // errors reach the catch-all. Only the deliberate statuses may say more.
+      const leaky = new Error("ENOENT: no such file or directory, open '/home/me/wiki/secret.md'");
+      const response = errorResponse(leaky);
+
+      expect(response.status).toBe(500);
+      expect(await response.text()).toBe("Internal server error");
+    });
+  });
+
+  describe("request policy", () => {
+    test("refuses anything but a read", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n" });
+      const response = await app.fetch(
+        new Request("http://localhost/api/tree", { method: "POST" }),
+      );
+      expect(response.status).toBe(405);
+    });
+
+    test("refuses a cross-origin request", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n" });
+      const response = await app.fetch(
+        new Request("http://localhost/api/tree", { headers: { Origin: "https://evil.example" } }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    test("refuses a rebound hostname while the server is on loopback", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n" });
+      // DNS rebinding needs a name the attacker controls to resolve to 127.0.0.1.
+      const response = await app.fetch(
+        new Request("http://localhost/api/tree", { headers: { Host: "evil.example" } }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    test("accepts any hostname once the bind is explicitly remote", async () => {
+      const root = createWiki({ "Home.md": "# Home\n" });
+      const app = createApp(wikiContext(root, adoFlavor), {
+        bind: "0.0.0.0",
+        allowRemoteImages: false,
+      });
+      const response = await app.fetch(
+        new Request("http://localhost/api/tree", { headers: { Host: "wiki.example" } }),
+      );
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("security headers", () => {
+    test("locks the shell down to its own origin", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n" });
+      const csp =
+        (await app.fetch(new Request("http://localhost/read/Home.md"))).headers.get(
+          "Content-Security-Policy",
+        ) ?? "";
+
+      expect(csp).toContain("script-src 'self'");
+      expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain("object-src 'none'");
+      expect(csp).toContain("base-uri 'none'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(csp).toContain("img-src 'self' data:;");
+    });
+
+    test("opens img-src only when the reader asks for it", async () => {
+      const root = createWiki({ "Home.md": "# Home\n" });
+      const app = createApp(wikiContext(root, adoFlavor), {
+        bind: "127.0.0.1",
+        allowRemoteImages: true,
+      });
+      const csp =
+        (await app.fetch(new Request("http://localhost/"))).headers.get(
+          "Content-Security-Policy",
+        ) ?? "";
+
+      expect(csp).toContain("img-src 'self' data: https:");
+    });
+
+    test("sandboxes assets so a wiki-local SVG cannot script", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n", "diagram.svg": "<svg></svg>" });
+      const response = await app.fetch(new Request("http://localhost/api/asset?path=diagram.svg"));
+
+      expect(response.headers.get("Content-Security-Policy")).toContain("sandbox");
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    });
+
+    test("sets the common headers on API responses", async () => {
+      const { app } = appFor({ "Home.md": "# Home\n" });
+      const response = await app.fetch(new Request("http://localhost/api/tree"));
+
+      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+      expect(response.headers.get("Content-Security-Policy")).toContain("default-src 'none'");
     });
   });
 

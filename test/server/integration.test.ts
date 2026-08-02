@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { writeFileSync } from "node:fs";
+import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveWikiContext } from "../../src/core/context.ts";
 import { startMdivServer, type MdivServer } from "../../src/server/index.ts";
@@ -67,6 +67,26 @@ describe("end-to-end server", () => {
 
     expect(await readEvent(reader)).toContain("event: file_changed");
     await reader.cancel();
+  }, 15_000);
+
+  // A repository nobody vouched for may link back to one of its own parents.
+  // Following it walks until the kernel answers ELOOP, and that error reaching
+  // chokidar unhandled used to kill the process moments after it started
+  // listening — the wiki never became readable at all.
+  test("keeps serving a wiki whose symlink points at an ancestor", async () => {
+    const cyclic = createWiki({ "wiki/Home.md": "# Home\n" });
+    symlinkSync(cyclic, join(cyclic, "wiki", "linked"));
+
+    const context = await resolveWikiContext(join(cyclic, "wiki"));
+    const cyclicServer = await startMdivServer(context, "localhost", 0);
+    try {
+      await Bun.sleep(500);
+      const response = await fetch(`${cyclicServer.url}api/tree`);
+      expect(response.status).toBe(200);
+      expect(((await response.json()) as TreeResponse).files).toEqual(["Home.md"]);
+    } finally {
+      await cyclicServer.stop();
+    }
   }, 15_000);
 });
 
